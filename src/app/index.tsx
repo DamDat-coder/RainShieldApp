@@ -1,98 +1,90 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Footer } from '@/components/Footer/Footer';
+import { Header } from '@/components/Header/Header';
+import { SensorCard } from '@/components/SensorCard/SensorCard';
+import React, { useState, useEffect } from 'react';
+import { View, SafeAreaView, StatusBar, ScrollView } from 'react-native';
+import mqtt from 'mqtt';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
+interface SensorData {
+  dht_valid: boolean;
+  temp: number | null;
+  hum: number | null;
+  light: number;
+  ir: boolean;
 }
 
 export default function HomeScreen() {
+  const [sensorData, setSensorData] = useState<SensorData>({
+    dht_valid: false,
+    temp: null,
+    hum: null,
+    light: 0,
+    ir: false,
+  });
+
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+
+  useEffect(() => {
+    const client = mqtt.connect('ws://broker.hivemq.com:8000/mqtt');
+
+    client.on('connect', () => {
+      client.subscribe('rainshield/sensors');
+      setIsConnected(true);
+    });
+
+    client.on('message', (topic, message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        setSensorData(data);
+      } catch (e) {
+        console.error('Loi parse JSON:', e);
+      }
+    });
+
+    return () => {
+      client.end();
+    };
+  }, []);
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+    <SafeAreaView style={{ flex: 1 }} className="bg-slate-50">
+      <StatusBar barStyle="dark-content" />
+      
+      {/* Khối chứa phần nội dung chính (Header + Cảm biến) */}
+      <View style={{ flex: 1 }} className="pt-8 px-4">
+        <Header isConnected={isConnected} />
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+        <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+          <View className="px-3 md:px-8 lg:px-10 flex-row flex-wrap justify-evenly">
+            <SensorCard 
+              title="Nhiệt độ" 
+              value={sensorData.dht_valid && sensorData.temp !== null ? sensorData.temp : 'N/A'} 
+              unit={sensorData.dht_valid ? '°C' : ''} 
+            />
+            
+            <SensorCard 
+              title="Độ ẩm" 
+              value={sensorData.dht_valid && sensorData.hum !== null ? sensorData.hum : 'N/A'} 
+              unit={sensorData.dht_valid ? '%' : ''} 
+            />
+            
+            <SensorCard 
+              title="Ánh sáng" 
+              value={sensorData.light} 
+              unit="%" 
+            />
+            
+            <SensorCard 
+              title="Hồng ngoại (IR)" 
+              value={sensorData.ir ? 'Phát hiện' : 'An toàn'} 
+              valueColor={sensorData.ir ? 'text-pink-600' : 'text-emerald-600'}
+            />
+          </View>
+        </ScrollView>
+      </View>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+      {/* Footer tự đính vào đáy màn hình */}
+      <Footer />
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});
