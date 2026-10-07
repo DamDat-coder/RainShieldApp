@@ -1,9 +1,9 @@
-import { Footer } from '@/components/Footer/Footer';
 import { Header } from '@/components/Header/Header';
 import { SensorCard } from '@/components/SensorCard/SensorCard';
 import React, { useState, useEffect } from 'react';
-import { View, SafeAreaView, StatusBar, ScrollView } from 'react-native';
+import { View, SafeAreaView, ScrollView } from 'react-native';
 import mqtt from 'mqtt';
+import { useTheme } from '@/context/ThemeContext';
 
 interface SensorData {
   dht_valid: boolean;
@@ -14,6 +14,7 @@ interface SensorData {
 }
 
 export default function HomeScreen() {
+  const { colors } = useTheme();
   const [sensorData, setSensorData] = useState<SensorData>({
     dht_valid: false,
     temp: null,
@@ -47,33 +48,27 @@ export default function HomeScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={{ flex: 1 }} className="bg-slate-50">
-      <StatusBar barStyle="dark-content" />
-      
-      {/* Khối chứa phần nội dung chính (Header + Cảm biến) */}
-      <View style={{ flex: 1 }} className="pt-8 px-4">
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1 }} className="">
         <Header isConnected={isConnected} />
 
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-          <View className="px-3 md:px-8 lg:px-10 flex-row flex-wrap justify-evenly">
+          <View className="flex-row flex-wrap justify-evenly gap-2">
             <SensorCard 
               title="Nhiệt độ" 
               value={sensorData.dht_valid && sensorData.temp !== null ? sensorData.temp : 'N/A'} 
               unit={sensorData.dht_valid ? '°C' : ''} 
             />
-            
             <SensorCard 
               title="Độ ẩm" 
               value={sensorData.dht_valid && sensorData.hum !== null ? sensorData.hum : 'N/A'} 
               unit={sensorData.dht_valid ? '%' : ''} 
             />
-            
             <SensorCard 
               title="Ánh sáng" 
               value={sensorData.light} 
               unit="%" 
             />
-            
             <SensorCard 
               title="Hồng ngoại (IR)" 
               value={sensorData.ir ? 'Phát hiện' : 'An toàn'} 
@@ -82,9 +77,6 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
       </View>
-
-      {/* Footer tự đính vào đáy màn hình */}
-      <Footer />
     </SafeAreaView>
   );
 }
